@@ -2,7 +2,7 @@
 
 **"Know what a codebase is worth before you trust it — or buy it."**
 
-micro1 Agentic Workflows Hackathon — Aug 30–31, 2026
+micro1 Agentic Workflows Hackathon — Aug 28–30, 2026
 
 ---
 
