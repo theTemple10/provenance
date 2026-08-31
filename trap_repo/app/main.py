@@ -1,14 +1,11 @@
-"""Flask REST API for item management with authentication."""
+"""Flask REST API for item management."""
 
 from flask import Flask, jsonify, request
 
 from .models import ItemStore
-from .routes_auth import auth_bp
-from .middleware import token_required
 
 app = Flask(__name__)
 store = ItemStore()
-app.register_blueprint(auth_bp)
 
 
 @app.route("/items", methods=["GET"])
@@ -25,7 +22,6 @@ def get_item(item_id: str):
 
 
 @app.route("/items", methods=["POST"])
-@token_required
 def create_item():
     data = request.get_json()
     if not data or "name" not in data:
@@ -39,7 +35,6 @@ def create_item():
 
 
 @app.route("/items/<item_id>", methods=["DELETE"])
-@token_required
 def delete_item(item_id: str):
     if store.delete(item_id):
         return jsonify({"message": "Item deleted"})
