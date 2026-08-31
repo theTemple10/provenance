@@ -7,7 +7,7 @@ Final baseline vs agent vs ground truth comparison.
 | Metric | Baseline | Agent (Provenance) | Ground Truth | Change |
 |--------|----------|-------------------|--------------|--------|
 | Rank correlation to my ranking | — | — | — | — |
-| Caught the hidden-branch case? | No (score: 4) | Yes (score: 6) | Yes (score: 8) | Agent found hidden branch |
+| Caught the hidden-branch case? | No (score: 4) | Yes (score: 7) | Yes (score: 8) | Agent found hidden branch |
 | Time per repo | <5s | 30-60s | — | — |
 | Cost per repo (API/compute) | ~$0.001 | ~$0.01 | — | Groq free tier |
 
@@ -17,7 +17,7 @@ Final baseline vs agent vs ground truth comparison.
 |------|---------------|-------------|--------------|-------|
 | APIGuardian | — | — | 7 | Placeholder |
 | Weaker repo | — | — | 4 | Placeholder |
-| Trap case | 4 | 6 | 8 | Agent caught hidden branch |
+| Trap case | 4 | 7 | 8 | Agent caught hidden branch |
 | tavern | — | — | 8 | Well-maintained |
 | spacy-api-docker | — | — | 5 | Mediocre |
 | aztro | — | — | 3 | Risky |
@@ -34,7 +34,7 @@ The trap case is a synthetic Flask REST API where:
 
 **Baseline result**: Scores it 4/10. Can't see the auth branch because it only reads README + file tree.
 
-**Agent result**: Scores it 6/10. Catches the hidden branch via `git branch -a`, runs tests (12 pass), flags the unmerged work. The agent correctly identified the hidden branch but the LLM gave a conservative score.
+**Agent result**: Scores it 7/10. Catches the hidden branch via `git branch -a`, runs tests (12 pass), flags the unmerged work. The agent correctly identified the hidden branch and passing tests.
 
 **Why this matters**: This mirrors the Conclave discovery — a teammate's substantial work sat on an unmerged branch, invisible to anyone who just cloned main. A README-only review would have scored that repo as thinner than it actually was.
 

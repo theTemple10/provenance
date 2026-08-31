@@ -35,7 +35,7 @@ The strongest eval repo is a synthetic "hidden branch" case:
 - **main branch**: Basic Flask REST API with CRUD (150 LOC, tests pass)
 - **unmerged branch `feature/auth-system`**: Full JWT auth system (400+ LOC more, never merged)
 
-A README-only review scores this 4/10. The agent, which checks `git branch -a`, catches the hidden work and scores it 6/10 — correctly identifying the hidden branch and passing tests.
+A README-only review scores this 4/10. The agent, which checks `git branch -a`, catches the hidden work and scores it 7/10 — correctly identifying the hidden branch and passing tests.
 
 ## Eval Set
 
@@ -55,7 +55,7 @@ A README-only review scores this 4/10. The agent, which checks `git branch -a`, 
 | Metric | Baseline | Agent (Provenance) | Ground Truth | Change |
 |--------|----------|-------------------|--------------|--------|
 | Rank correlation | — | — | — | — |
-| Caught hidden-branch case? | No (score: 4) | Yes (score: 6) | Yes (score: 8) | Agent found hidden branch |
+| Caught hidden-branch case? | No (score: 4) | Yes (score: 7) | Yes (score: 8) | Agent found hidden branch |
 | Time per repo | <5s | 30-60s | — | — |
 | Cost per repo | ~$0.001 | ~$0.01 | — | Groq free tier |
 
