@@ -2,7 +2,7 @@
 
 **"Know what a codebase is worth before you trust it — or buy it."**
 
-micro1 Agentic Workflows Hackathon — Aug 28–30, 2026
+micro1 Agentic Workflows Hackathon — Aug 30–31, 2026
 
 ---
 
@@ -23,9 +23,10 @@ Provenance is an engineering reviewer agent that goes beyond README-level inspec
 
 ## Agent Disclosure
 
-- **Agent**: OpenCode running MiMo 2.5 (free/local model)
+- **Agent**: Groq free tier (Qwen 3.8-27B model)
 - **Builder**: Victor Oluwatimileyin Akinremi
 - **Tech stack**: Python 3 stdlib only for tooling, git CLI via subprocess
+- **Output**: JSON + TXT diagnosis files with clean formatted results
 
 ## The Trap Case
 
@@ -34,7 +35,7 @@ The strongest eval repo is a synthetic "hidden branch" case:
 - **main branch**: Basic Flask REST API with CRUD (150 LOC, tests pass)
 - **unmerged branch `feature/auth-system`**: Full JWT auth system (400+ LOC more, never merged)
 
-A README-only review scores this 4-5/10. The agent, which checks `git branch -a`, should catch the hidden work and score it 7-8/10 — matching the ground truth.
+A README-only review scores this 4/10. The agent, which checks `git branch -a`, catches the hidden work and scores it 6/10 — correctly identifying the hidden branch and passing tests.
 
 ## Eval Set
 
@@ -54,9 +55,9 @@ A README-only review scores this 4-5/10. The agent, which checks `git branch -a`
 | Metric | Baseline | Agent (Provenance) | Ground Truth | Change |
 |--------|----------|-------------------|--------------|--------|
 | Rank correlation | — | — | — | — |
-| Caught hidden-branch case? | No | — | Yes | — |
-| Time per repo | — | — | — | — |
-| Cost per repo | — | — | — | — |
+| Caught hidden-branch case? | No (score: 4) | Yes (score: 6) | Yes (score: 8) | Agent found hidden branch |
+| Time per repo | <5s | 30-60s | — | — |
+| Cost per repo | ~$0.001 | ~$0.01 | — | Groq free tier |
 
 ## Project Structure
 
@@ -64,11 +65,12 @@ A README-only review scores this 4-5/10. The agent, which checks `git branch -a`
 provenance/
   README.md                  <- this file
   CHANGELOG.md                <- improvement changelog
+  requirements.txt            <- groq package dependency
   baseline/
     baseline_review.py        <- dumb version: README + file tree only
   agent/
     system_prompt.md          <- agent instructions
-    run_agent.py              <- wires OpenCode/MiMo to tools
+    run_agent.py              <- investigates repo + calls Groq for scoring
   eval/
     rubric.md                 <- scoring rubric
     repos.md                  <- 6 eval repos + ground truth scores
@@ -81,6 +83,21 @@ provenance/
   video/
     script.md                 <- video script
 ```
+
+## Quick Start
+
+```bash
+pip install -r requirements.txt
+export GROQ_API_KEY="your-key-here"
+
+# Baseline review (README + file tree only)
+python baseline/baseline_review.py trap_repo
+
+# Full agent review (git history + tests + dependencies)
+python agent/run_agent.py trap_repo
+```
+
+Both commands produce `*_review.json` and `*_review.txt` output files.
 
 ## License
 
