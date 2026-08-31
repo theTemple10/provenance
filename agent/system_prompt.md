@@ -18,6 +18,7 @@ TECH CONSTRAINTS — FOLLOW EXACTLY
 - Never modify, commit, push, or write to the target repository. This
   is a READ-ONLY and RUN-TESTS-ONLY assessment. Do not touch git
   remotes. Any test execution happens in an isolated working copy.
+- LLM scoring is done via Groq free tier (Qwen 3.8-27B model).
 
 WHAT TO INVESTIGATE (use tools/shell commands for each)
 1. Structure & architecture: file tree, entry points, module boundaries.

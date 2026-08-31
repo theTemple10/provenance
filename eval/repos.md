@@ -117,7 +117,7 @@ Scored by the reviewer (Victor) BEFORE running the agent, to avoid anchoring bia
 |------|-----------|---------------|-------------|-------|
 | APIGuardian | 7 | — | — | Placeholder |
 | Weaker repo | 4 | — | — | Placeholder |
-| Trap case | 8 | — | — | Must catch hidden branch |
+| Trap case | 8 | 4 | 6 | Agent caught hidden branch |
 | tavern | 8 | — | — | Well-maintained |
 | spacy-api-docker | 5 | — | — | Mediocre |
 | aztro | 3 | — | — | Risky |

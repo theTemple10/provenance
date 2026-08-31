@@ -2,7 +2,7 @@
 **"Know what a codebase is worth before you trust it — or buy it."**
 
 micro1 Agentic Workflows Hackathon — Aug 30–31, 2026
-Agent: OpenCode + MiMo 2.5 (free/local model)
+Agent: Groq free tier (Qwen 3.8-27B)
 Builder: Victor Oluwatimileyin Akinremi
 
 ---

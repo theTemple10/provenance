@@ -40,7 +40,7 @@ It's producing the final score with evidence — every claim points to a command
 
 "Across six repos, the agent's ranking matched mine on [X], the baseline matched on [Y].
 
-On the trap repo specifically — the one built to mirror what actually happened to me — baseline scored it a 4, the agent caught the hidden work and scored it an 8, matching my own assessment."
+On the trap repo specifically — the one built to mirror what actually happened to me — baseline scored it a 4, the agent caught the hidden work and scored it a 6, correctly identifying the hidden branch and passing tests."
 
 ---
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Agent runner: wires OpenCode/MiMo to the Provenance review tools.
+Agent runner: wires Groq LLM to the Provenance review tools.
 
 This script orchestrates the agent's investigation of a target repository
-by executing shell commands and collecting evidence.
+by executing shell commands and collecting evidence, then calls Groq API
+to produce a scored assessment.
 """
 
 import json
@@ -12,8 +13,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+try:
+    from groq import Groq
+except ImportError:
+    print("Error: groq package not installed. Run: pip install groq", file=sys.stderr)
+    sys.exit(1)
 
-def run_cmd(cmd: list[str], cwd: str = None) -> dict:
+
+def run_cmd(cmd: list, cwd: str = None) -> dict:
     """Run a shell command and return its output."""
     try:
         result = subprocess.run(
@@ -66,18 +73,28 @@ def investigate_tests(repo_path: str) -> dict:
 
     if has_requirements or has_setup_py or has_pyproject:
         test_result["stack"] = "python"
-        # Try to run tests
+        
+        # Check for existing venv first, then create if needed
         venv_path = Path(repo_path) / ".venv_provenance"
-        if not venv_path.exists():
+        existing_venv = Path(repo_path) / "venv"
+        
+        if existing_venv.exists() and (existing_venv / "Scripts" / "pytest.exe").exists():
+            venv_path = existing_venv
+        elif not venv_path.exists():
             run_cmd([sys.executable, "-m", "venv", str(venv_path)], cwd=repo_path)
 
         pip = venv_path / "Scripts" / "pip.exe" if os.name == "nt" else venv_path / "bin" / "pip"
         pytest_bin = venv_path / "Scripts" / "pytest.exe" if os.name == "nt" else venv_path / "bin" / "pytest"
 
-        run_cmd([str(pip), "install", "-r", "requirements.txt", "pytest"], cwd=repo_path)
-        result = run_cmd([str(pytest_bin), "--tb=short", "-q"], cwd=repo_path)
-        test_result["tests_ran"] = True
-        test_result["output"] = result["stdout"] + result["stderr"]
+        if pip.exists():
+            run_cmd([str(pip), "install", "-r", "requirements.txt", "pytest", "-q"], cwd=repo_path)
+        
+        if pytest_bin.exists():
+            result = run_cmd([str(pytest_bin), "--tb=short", "-q"], cwd=repo_path)
+            test_result["tests_ran"] = True
+            test_result["output"] = result["stdout"] + result["stderr"]
+        else:
+            test_result["output"] = "pytest not found in venv"
     elif has_package_json:
         test_result["stack"] = "node"
         result = run_cmd(["npm", "test"], cwd=repo_path)
@@ -91,7 +108,7 @@ def investigate_git_history(repo_path: str) -> dict:
     """3. Git history signal: branches, commits, recency."""
     branches = run_cmd(["git", "branch", "-a"], cwd=repo_path)
     log_all = run_cmd(["git", "log", "--all", "--oneline"], cwd=repo_path)
-    log_main = run_cmd(["git", "log", "main", "--oneline"], cwd=repo_path)
+    log_main = run_cmd(["git", "log", "master", "--oneline"], cwd=repo_path)
     log_recent = run_cmd(
         ["git", "log", "--all", "--oneline", "--since=6.months"], cwd=repo_path
     )
@@ -164,6 +181,111 @@ OUTPUT FORMAT:
 """
 
 
+def call_groq(prompt: str) -> str:
+    """Call Groq API to score the repository."""
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return json.dumps({"error": "GROQ_API_KEY environment variable not set"})
+
+    client = Groq(api_key=api_key)
+    response = client.chat.completions.create(
+        model="qwen/qwen3.8-27b",
+        messages=[
+            {"role": "system", "content": "You are a code repository reviewer. Output only valid JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3,
+        max_tokens=1000,
+    )
+    return response.choices[0].message.content
+
+
+def format_txt_output(scores: dict, evidence: dict, repo_path: str) -> str:
+    """Format a clean .txt diagnosis file."""
+    lines = []
+    lines.append("=" * 60)
+    lines.append("PROVENANCE - Full Agent Repository Review")
+    lines.append("=" * 60)
+    lines.append(f"\nRepository: {repo_path}")
+    lines.append(f"Review Type: Full Agent (git history + tests + dependencies)")
+    lines.append("")
+
+    if "error" in scores:
+        lines.append("ERROR:")
+        lines.append(scores["error"])
+        return "\n".join(lines)
+
+    lines.append("SCORES")
+    lines.append("-" * 40)
+    lines.append(f"Overall Score:        {scores.get('overall_score', 'N/A')}/10")
+    lines.append(f"Architecture Score:   {scores.get('architecture_score', 'N/A')}/10")
+    lines.append(f"Test Health Score:    {scores.get('test_health_score', 'N/A')}/10")
+    lines.append(f"Hidden Risk Score:    {scores.get('hidden_risk_score', 'N/A')}/10")
+    lines.append("")
+
+    lines.append("EVIDENCE")
+    lines.append("-" * 40)
+    for item in scores.get("evidence", []):
+        lines.append(f"- {item.get('claim', 'N/A')}")
+        lines.append(f"  Source: {item.get('source', 'N/A')}")
+    lines.append("")
+
+    lines.append("FLAGS")
+    lines.append("-" * 40)
+    for flag in scores.get("flags", []):
+        lines.append(f"! {flag}")
+    lines.append("")
+
+    lines.append("CONFIDENCE")
+    lines.append("-" * 40)
+    lines.append(f"Level: {scores.get('confidence', 'N/A')}")
+    lines.append("")
+
+    lines.append("INVESTIGATION DETAILS")
+    lines.append("-" * 40)
+
+    # Git history
+    git = evidence.get("git_history", {})
+    branches = git.get("branches", "").strip()
+    if branches:
+        lines.append("\nBranches found:")
+        for b in branches.split("\n"):
+            lines.append(f"  {b.strip()}")
+
+    # Tests
+    tests = evidence.get("tests", {})
+    lines.append(f"\nTest execution: {'Yes' if tests.get('tests_ran') else 'No'}")
+    if tests.get("output"):
+        output_lines = tests["output"].strip().split("\n")[:10]
+        lines.append("Test output (first 10 lines):")
+        for line in output_lines:
+            lines.append(f"  {line}")
+
+    # Dependencies
+    deps = evidence.get("dependencies", {})
+    if deps:
+        lines.append("\nDependencies found:")
+        for key, val in deps.items():
+            if isinstance(val, list):
+                lines.append(f"  {key}: {len(val)} packages")
+            else:
+                lines.append(f"  {key}: {val}")
+
+    # Code signals
+    signals = evidence.get("code_signals", {})
+    lines.append(f"\nCI configured: {'Yes' if signals.get('has_ci') else 'No'}")
+    todo = signals.get("todo_fixme", "").strip()
+    if todo:
+        lines.append(f"TODO/FIXME items: {len(todo.split(chr(10)))} found")
+
+    lines.append("")
+    lines.append("=" * 60)
+    lines.append("END OF REPORT")
+    lines.append("=" * 60)
+
+    return "\n".join(lines)
+
+
 def run_agent(repo_path: str) -> dict:
     """Run the full agent investigation on a repository."""
     print(f"[*] Investigating: {repo_path}", file=sys.stderr)
@@ -177,11 +299,30 @@ def run_agent(repo_path: str) -> dict:
     }
 
     prompt = generate_agent_prompt(evidence)
+
+    # Call Groq API to get scored assessment
+    print("[*] Calling LLM for scoring...", file=sys.stderr)
+    response = call_groq(prompt)
+
+    # Strip markdown code blocks if present
+    cleaned = response.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    if cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
+
+    try:
+        scores = json.loads(cleaned)
+    except json.JSONDecodeError:
+        scores = {"error": "Failed to parse LLM response", "raw_response": response}
+
     return {
         "repo_path": repo_path,
+        "scores": scores,
         "evidence": evidence,
-        "prompt_for_llm": prompt,
-        "note": "Evidence collected. Send prompt_for_llm to LLM for final scoring.",
     }
 
 
@@ -189,7 +330,8 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python run_agent.py <repo_path>")
         print("\nThis is the Provenance agent runner.")
-        print("It investigates a repository and collects evidence for scoring.")
+        print("It investigates a repository and produces a scored assessment.")
+        print("\nRequired environment variable: GROQ_API_KEY")
         sys.exit(1)
 
     repo_path = sys.argv[1]
@@ -198,6 +340,21 @@ def main():
         sys.exit(1)
 
     result = run_agent(repo_path)
+
+    # Write JSON output
+    json_path = Path(repo_path) / "agent_review.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+    print(f"JSON output: {json_path}")
+
+    # Write .txt output
+    txt_content = format_txt_output(result["scores"], result["evidence"], repo_path)
+    txt_path = Path(repo_path) / "agent_review.txt"
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(txt_content)
+    print(f"TXT output: {txt_path}")
+
+    # Also print JSON to stdout
     print(json.dumps(result, indent=2))
 
 
