@@ -23,7 +23,7 @@ Provenance is an engineering reviewer agent that goes beyond README-level inspec
 
 ## Agent Disclosure
 
-- **Agent**: OpenCode running Groq (free tier) with Qwen 3.8-27B
+- **Agent**: OpenCode running MiMo 2.5 (free/local model)
 - **Builder**: Victor Oluwatimileyin Akinremi
 - **Tech stack**: Python 3 stdlib only for tooling, git CLI via subprocess
 
@@ -54,9 +54,9 @@ A README-only review scores this 4-5/10. The agent, which checks `git branch -a`
 | Metric | Baseline | Agent (Provenance) | Ground Truth | Change |
 |--------|----------|-------------------|--------------|--------|
 | Rank correlation | — | — | — | — |
-| Caught hidden-branch case? | No (score: 4) | Yes (score: 6) | Yes (score: 8) | Agent found hidden branch |
-| Time per repo | <5s | 30-60s | — | — |
-| Cost per repo | ~$0.001 | ~$0.01 | — | Groq free tier |
+| Caught hidden-branch case? | No | — | Yes | — |
+| Time per repo | — | — | — | — |
+| Cost per repo | — | — | — | — |
 
 ## Project Structure
 
